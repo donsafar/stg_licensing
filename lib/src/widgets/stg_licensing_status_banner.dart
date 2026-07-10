@@ -8,7 +8,13 @@ import 'package:stg_licensing/src/stg_licensing_state.dart';
 
 /// Top-of-app banner for trial or licensed subscription countdown.
 class StgLicensingStatusBanner extends ConsumerStatefulWidget {
-  const StgLicensingStatusBanner({super.key});
+  const StgLicensingStatusBanner({
+    super.key,
+    this.onReadOnlyTap,
+  });
+
+  /// Called when the user taps the banner in read-only mode (trial/subscription ended).
+  final VoidCallback? onReadOnlyTap;
 
   @override
   ConsumerState<StgLicensingStatusBanner> createState() =>
@@ -82,52 +88,69 @@ class _StgLicensingStatusBannerState
 
     final theme = Theme.of(context);
     final isLicensed = licensing.phase == StgLicensingPhase.licensedActive;
+    final isReadOnly = licensing.isReadOnly;
     final isExpired =
         content.isExpired || licensing.phase == StgLicensingPhase.locked;
+    final onReadOnlyTap = isReadOnly ? widget.onReadOnlyTap : null;
 
-    return Material(
-      color: (isExpired
-              ? theme.colorScheme.errorContainer
-              : isLicensed
-                  ? theme.colorScheme.secondaryContainer
-                  : theme.colorScheme.primaryContainer)
-          .withValues(alpha: 0.55),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          children: [
-            Icon(
-              isExpired
-                  ? Icons.error_outline
-                  : isLicensed
-                      ? Icons.verified_outlined
-                      : Icons.schedule_outlined,
-              size: 18,
-              color: isExpired
-                  ? theme.colorScheme.onErrorContainer
-                  : isLicensed
-                      ? theme.colorScheme.onSecondaryContainer
-                      : theme.colorScheme.onPrimaryContainer,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _BannerText(
-                content: content,
-                pending: licensing.phase == StgLicensingPhase.trialPending,
-                blinkAnimation: _blinkAnimation,
-                textStyle: theme.textTheme.bodySmall?.copyWith(
-                  color: isExpired
-                      ? theme.colorScheme.onErrorContainer
-                      : isLicensed
-                          ? theme.colorScheme.onSecondaryContainer
-                          : theme.colorScheme.onPrimaryContainer,
-                  fontWeight: FontWeight.w600,
-                ),
+    final bannerColor = (isExpired
+            ? theme.colorScheme.errorContainer
+            : isLicensed
+                ? theme.colorScheme.secondaryContainer
+                : theme.colorScheme.primaryContainer)
+        .withValues(alpha: 0.55);
+    final onBannerColor = isExpired
+        ? theme.colorScheme.onErrorContainer
+        : isLicensed
+            ? theme.colorScheme.onSecondaryContainer
+            : theme.colorScheme.onPrimaryContainer;
+
+    final row = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Icon(
+            isExpired
+                ? Icons.error_outline
+                : isLicensed
+                    ? Icons.verified_outlined
+                    : Icons.schedule_outlined,
+            size: 18,
+            color: onBannerColor,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _BannerText(
+              content: content,
+              pending: licensing.phase == StgLicensingPhase.trialPending,
+              readOnlyTappable: onReadOnlyTap != null,
+              blinkAnimation: _blinkAnimation,
+              textStyle: theme.textTheme.bodySmall?.copyWith(
+                color: onBannerColor,
+                fontWeight: FontWeight.w600,
               ),
             ),
+          ),
+          if (onReadOnlyTap != null) ...[
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right, size: 20, color: onBannerColor),
           ],
-        ),
+        ],
       ),
+    );
+
+    return Material(
+      color: bannerColor,
+      child: onReadOnlyTap == null
+          ? row
+          : Semantics(
+              button: true,
+              label: 'Read-only mode. View subscription options.',
+              child: InkWell(
+                onTap: onReadOnlyTap,
+                child: row,
+              ),
+            ),
     );
   }
 }
@@ -136,12 +159,14 @@ class _BannerText extends StatelessWidget {
   const _BannerText({
     required this.content,
     required this.pending,
+    required this.readOnlyTappable,
     required this.blinkAnimation,
     required this.textStyle,
   });
 
   final StgLicensingBannerContent content;
   final bool pending;
+  final bool readOnlyTappable;
   final Animation<double> blinkAnimation;
   final TextStyle? textStyle;
 
@@ -156,7 +181,11 @@ class _BannerText extends StatelessWidget {
 
     if (content.isExpired) {
       return Text(
-        '${content.licenseType} License Expired',
+        content.readOnly
+            ? (readOnlyTappable
+                ? 'Read-only — tap to subscribe and edit your data'
+                : 'Read-only — subscribe to edit your data')
+            : '${content.licenseType} License Expired',
         style: textStyle,
       );
     }

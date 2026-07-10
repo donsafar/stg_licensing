@@ -101,3 +101,13 @@ final stgLicensingProvider =
     NotifierProvider<StgLicensingNotifier, StgLicensingState>(
   StgLicensingNotifier.new,
 );
+
+/// Whether the host app may write to its local database (false in read-only mode).
+final stgCanWriteProvider = Provider<bool>((ref) {
+  return ref.watch(stgLicensingProvider).canWriteToDatabase;
+});
+
+/// Whether export / backup flows that produce or overwrite files are allowed.
+final stgCanExportProvider = Provider<bool>((ref) {
+  return ref.watch(stgLicensingProvider).canExportData;
+});

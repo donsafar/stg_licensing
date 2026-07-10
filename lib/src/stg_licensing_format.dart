@@ -3,8 +3,10 @@ import 'package:stg_licensing/src/stg_portfolio_app_id.dart';
 
 /// Parsed banner text for [StgLicensingStatusBanner].
 class StgLicensingBannerContent {
-  const StgLicensingBannerContent.expired({required this.licenseType})
-      : isExpired = true,
+  const StgLicensingBannerContent.expired({
+    required this.licenseType,
+    this.readOnly = false,
+  })  : isExpired = true,
         days = null,
         hours = null,
         minutes = null,
@@ -16,10 +18,12 @@ class StgLicensingBannerContent {
     required this.hours,
     required this.minutes,
     required this.showMinutes,
-  }) : isExpired = false;
+  })  : isExpired = false,
+        readOnly = false;
 
   final String licenseType;
   final bool isExpired;
+  final bool readOnly;
   final int? days;
   final int? hours;
   final int? minutes;
@@ -62,7 +66,10 @@ StgLicensingBannerContent buildStgLicensingBannerContent(
   }
 
   if (state.phase == StgLicensingPhase.locked) {
-    return StgLicensingBannerContent.expired(licenseType: licenseType);
+    return StgLicensingBannerContent.expired(
+      licenseType: licenseType,
+      readOnly: true,
+    );
   }
 
   final remaining = state.remaining;
@@ -104,6 +111,9 @@ String stgLicensingBannerLabel(StgLicensingState state) {
 
   final content = buildStgLicensingBannerContent(state);
   if (content.isExpired) {
+    if (content.readOnly) {
+      return 'Read-only — subscribe to edit your data';
+    }
     return '${content.licenseType} License Expired';
   }
   if (content.licenseType.isEmpty) return '';

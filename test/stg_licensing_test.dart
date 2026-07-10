@@ -60,6 +60,37 @@ void main() {
     });
   });
 
+  group('read-only access', () {
+    test('locked phase is read-only and blocks writes', () {
+      const state = StgLicensingState(
+        enforced: true,
+        phase: StgLicensingPhase.locked,
+        activeTier: StgPlanTier.trial,
+      );
+      expect(state.isReadOnly, isTrue);
+      expect(state.canWriteToDatabase, isFalse);
+      expect(state.canExportData, isFalse);
+      expect(state.accessMode, StgAccessMode.readOnly);
+    });
+
+    test('active trial allows writes', () {
+      const state = StgLicensingState(
+        enforced: true,
+        phase: StgLicensingPhase.trialActive,
+        activeTier: StgPlanTier.trial,
+      );
+      expect(state.canWriteToDatabase, isTrue);
+      expect(state.accessMode, StgAccessMode.full);
+    });
+
+    test('stgAssertCanWriteDatabase throws when read-only', () {
+      expect(
+        () => stgAssertCanWriteDatabase(false),
+        throwsA(isA<StgReadOnlyException>()),
+      );
+    });
+  });
+
   group('stgLicensingBannerLabel', () {
     test('hides minutes when more than one day remains', () {
       final state = StgLicensingState(
@@ -85,14 +116,17 @@ void main() {
       expect(content.minutes, isNotNull);
     });
 
-    test('shows license expired at zero', () {
-      final state = StgLicensingState(
+    test('shows read-only label when locked', () {
+      const state = StgLicensingState(
         enforced: true,
         phase: StgLicensingPhase.locked,
         activeTier: StgPlanTier.premium,
-        expiresAt: DateTime.now().subtract(const Duration(minutes: 1)),
+        expiresAt: null,
       );
-      expect(stgLicensingBannerLabel(state), 'Premium License Expired');
+      expect(
+        stgLicensingBannerLabel(state),
+        'Read-only — subscribe to edit your data',
+      );
     });
   });
 }
